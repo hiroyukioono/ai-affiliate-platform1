@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          String    @default("ADMIN")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sites         Site[]
+  approvals     AiRecommendation[]
+}
+
+model Site {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  name             String
+  slug             String    @unique
+  description      String?
+  affiliateTitle   String
+  affiliateUrl     String?
+  status           String    @default("DRAFT")
+  themeId          String?
+  theme            DesignTheme? @relation(fields: [themeId], references: [id])
+  mobilePromptId   String?
+  mobilePrompt     MobileDesignPrompt? @relation(fields: [mobilePromptId], references: [id])
+  metaTitle        String?
+  metaDescription  String?
+  metaKeywords     String?
+  customDomain     String?
+  publishedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  pages            Page[]
+  analytics        Analytics[]
+  affiliateLinks   AffiliateLink[]
+  recommendations  AiRecommendation[]
+  experiments      Experiment[]
+  versions         SiteVersion[]
+  mobileSettings   MobileDesignSetting?
+}
+
+model Page {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  title       String
+  slug        String
+  content     String    @default("[]")
+  metaTitle   String?
+  metaDesc    String?
+  status      String    @default("DRAFT")
+  pageType    String    @default("ARTICLE")
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model DesignTheme {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  thumbnail    String?
+  primaryColor String    @default("#3B82F6")
+  secondaryColor String  @default("#1E40AF")
+  fontFamily   String    @default("'Noto Sans JP', sans-serif")
+  cssVariables String    @default("{}")
+  layoutConfig String    @default("{}")
+  status       String    @default("ACTIVE")
+  isDefault    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sites        Site[]
+  responsiveSets ResponsiveDesignSet[]
+}
+
+model MobileDesignPrompt {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  prompt       String
+  targetDevice String    @default("MOBILE")
+  priority     Int       @default(0)
+  status       String    @default("ACTIVE")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sites        Site[]
+  mobileSettings MobileDesignSetting[]
+  versions     MobilePromptVersion[]
+  responsiveSets ResponsiveDesignSet[]
+}
+
+model MobilePromptVersion {
+  id        String    @id @default(cuid())
+  promptId  String
+  prompt    MobileDesignPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  version   Int
+  name      String
+  prompt_content String
+  createdAt DateTime  @default(now())
+}
+
+model MobileDesignSetting {
+  id               String    @id @default(cuid())
+  siteId           String    @unique
+  site             Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  themeId          String?
+  mobilePromptId   String?
+  mobilePrompt     MobileDesignPrompt? @relation(fields: [mobilePromptId], references: [id])
+  fontScale        Float     @default(1.0)
+  spacingScale     Float     @default(1.0)
+  containerWidth   String    @default("100%")
+  buttonSize       String    @default("MEDIUM")
+  ctaStyle         String    @default("FULL_WIDTH")
+  navigationStyle  String    @default("HAMBURGER")
+  imageBehavior    String    @default("RESPONSIVE")
+  tableBehavior    String    @default("SCROLL")
+  cardBehavior     String    @default("STACK")
+  headerBehavior   String    @default("FIXED")
+  footerBehavior   String    @default("SIMPLE")
+  customCss        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model ResponsiveDesignSet {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  themeId        String?
+  theme          DesignTheme? @relation(fields: [themeId], references: [id])
+  mobilePromptId String?
+  mobilePrompt   MobileDesignPrompt? @relation(fields: [mobilePromptId], references: [id])
+  tabletConfig   String    @default("{}")
+  desktopConfig  String    @default("{}")
+  status         String    @default("ACTIVE")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model AffiliateProgram {
+  id          String    @id @default(cuid())
+  name        String
+  network     String
+  commission  Float     @default(0)
+  cookieDays  Int       @default(30)
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  links       AffiliateLink[]
+}
+
+model AffiliateLink {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  programId   String?
+  program     AffiliateProgram? @relation(fields: [programId], references: [id])
+  name        String
+  originalUrl String
+  trackingUrl String
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  revenue     Float     @default(0)
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clickEvents ClickEvent[]
+}
+
+model ClickEvent {
+  id            String    @id @default(cuid())
+  linkId        String
+  link          AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  siteId        String
+  device        String    @default("DESKTOP")
+  userAgent     String?
+  ipHash        String?
+  referrer      String?
+  revenue       Float     @default(0)
+  converted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+}
+
+model Analytics {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  date        DateTime
+  device      String    @default("ALL")
+  pageViews   Int       @default(0)
+  visits      Int       @default(0)
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  revenue     Float     @default(0)
+  bounceRate  Float     @default(0)
+  avgDuration Float     @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+model AiRecommendation {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  description String
+  reasoning   String?
+  dataUsed    String?
+  uncertainty String?
+  status      String    @default("PENDING")
+  priority    Int       @default(0)
+  appliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Experiment {
+  id          String    @id @default(cuid())
+  siteId      String
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  status      String    @default("DRAFT")
+  variantA    String    @default("{}")
+  variantB    String    @default("{}")
+  trafficSplit Float    @default(0.5)
+  startDate   DateTime?
+  endDate     DateTime?
+  results     String    @default("{}")
+  winner      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SiteVersion {
+  id        String    @id @default(cuid())
+  siteId    String
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  version   Int
+  content   String
+  comment   String?
+  createdAt DateTime  @default(now())
+}
+
+model MediaFile {
+  id        String    @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  size      Int       @default(0)
+  alt       String?
+  createdAt DateTime  @default(now())
+}
+
+model AuditLog {
+  id        String    @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  resourceId String?
+  detail    String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+}

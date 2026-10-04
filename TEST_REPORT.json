@@ -1,0 +1,275 @@
+{
+  "base": "http://localhost:3000",
+  "date": "2026-10-03T12:23:18.980Z",
+  "ai": {
+    "status": "CONNECTED",
+    "model": "qwen2.5:0.5b",
+    "baseUrl": "http://localhost:12000/v1"
+  },
+  "results": [
+    {
+      "name": "Application Start",
+      "ok": true,
+      "ms": 217,
+      "info": "tables=34"
+    },
+    {
+      "name": "Database",
+      "ok": true,
+      "ms": 24,
+      "info": "sqlite 34 tables"
+    },
+    {
+      "name": "Authentication (login/fail/logout/me)",
+      "ok": true,
+      "ms": 178,
+      "info": "user=admin@example.com"
+    },
+    {
+      "name": "Ollama Connection",
+      "ok": true,
+      "ms": 173,
+      "info": "qwen2.5:0.5b test=\"OK\" 155ms"
+    },
+    {
+      "name": "AI Generation (theme analysis)",
+      "ok": true,
+      "ms": 57905,
+      "info": "site_name=\"XServer VPS\" cats=123 kws=0 57878ms"
+    },
+    {
+      "name": "AI Generation (site structure)",
+      "ok": true,
+      "ms": 80540,
+      "info": "pages=1 80526ms"
+    },
+    {
+      "name": "Site Generation (create from AI result)",
+      "ok": true,
+      "ms": 19,
+      "info": "site#1 slug=xserver-vps pages=1 cats=1 (AI structure: yes)"
+    },
+    {
+      "name": "Design Management (CRUD/dup/versions/rollback/preview)",
+      "ok": true,
+      "ms": 91,
+      "info": "seeded=10 create/update/version/rollback/dup/select/delete ok"
+    },
+    {
+      "name": "Mobile Prompt (CRUD/toggle/dup/versions/rollback)",
+      "ok": true,
+      "ms": 102,
+      "info": "seeded=10 all 10 names present; CRUD/toggle/versions/rollback/dup ok"
+    },
+    {
+      "name": "Responsive Design (CRUD/dup/select)",
+      "ok": true,
+      "ms": 92,
+      "info": "seeded=3 desktop/tablet/mobile configs saved/edited"
+    },
+    {
+      "name": "Site Builder (add/edit/delete/move components)",
+      "ok": true,
+      "ms": 96,
+      "info": "types=17 add/edit/move/delete ok"
+    },
+    {
+      "name": "Drag & Drop (reorder per device)",
+      "ok": true,
+      "ms": 72,
+      "info": "desktop order reversed & restored; mobile order independent"
+    },
+    {
+      "name": "Image Management (upload/list/place/lazy/delete)",
+      "ok": true,
+      "ms": 95,
+      "info": "uploaded muscwm67-90a6fc4818f0.png 2x2, placed, lazy, responsive"
+    },
+    {
+      "name": "Affiliate Ad (program/link/ad register, original code immutable, placement)",
+      "ok": true,
+      "ms": 70,
+      "info": "ad#1 integrity_ok, link#1, placed as component#5, code verbatim in render"
+    },
+    {
+      "name": "CTA (add/edit/delete, desktop/tablet/mobile settings)",
+      "ok": true,
+      "ms": 62,
+      "info": "cta#6 desktop 320px / tablet 70% / mobile 100%"
+    },
+    {
+      "name": "Comparison Table (add/edit/delete, scroll & card mode)",
+      "ok": true,
+      "ms": 72,
+      "info": "table#8 desktop table / mobile scroll→card"
+    },
+    {
+      "name": "Desktop Preview",
+      "ok": true,
+      "ms": 10,
+      "info": "11138 bytes, responsive CSS present"
+    },
+    {
+      "name": "Tablet Preview",
+      "ok": true,
+      "ms": 10,
+      "info": "11138 bytes, responsive CSS present"
+    },
+    {
+      "name": "Mobile Preview",
+      "ok": true,
+      "ms": 10,
+      "info": "11138 bytes, responsive CSS present"
+    },
+    {
+      "name": "320px",
+      "ok": true,
+      "ms": 23,
+      "info": "preset ok, no ERROR-level issue at 320px"
+    },
+    {
+      "name": "375px",
+      "ok": true,
+      "ms": 18,
+      "info": "preset ok, no ERROR-level issue at 375px"
+    },
+    {
+      "name": "390px",
+      "ok": true,
+      "ms": 19,
+      "info": "preset ok, no ERROR-level issue at 390px"
+    },
+    {
+      "name": "414px",
+      "ok": true,
+      "ms": 14,
+      "info": "preset ok, no ERROR-level issue at 414px"
+    },
+    {
+      "name": "430px",
+      "ok": true,
+      "ms": 17,
+      "info": "preset ok, no ERROR-level issue at 430px"
+    },
+    {
+      "name": "Mobile Quality Check (PASS/WARNING/ERROR detection)",
+      "ok": true,
+      "ms": 41,
+      "info": "baseline=WARNING; injected 600px/20px button → ERROR (horizontal_scroll@320, tap_target) detected"
+    },
+    {
+      "name": "AI Mobile Optimization (analyze→pending→preview→approve→apply, no auto publish)",
+      "ok": true,
+      "ms": 120333,
+      "info": "rec#1 changes=6 pending; apply-before-approve rejected(409); 120290ms"
+    },
+    {
+      "name": "Publish (explicit, separate from autosave)",
+      "ok": true,
+      "ms": 15,
+      "info": "/s/xserver-vps/ live, tracking script + ad code present"
+    },
+    {
+      "name": "Analytics (PV/visits/device/page/session saved)",
+      "ok": true,
+      "ms": 62,
+      "info": "pv=4 visits=4 mobile=2 desktop=1 tablet=1 ctaView=1 ctaClick=1 CWV=未計測"
+    },
+    {
+      "name": "Affiliate Click (ad click beacon + link redirect)",
+      "ok": true,
+      "ms": 28,
+      "info": "clicks=2 ctr=50% redirect→original URL intact"
+    },
+    {
+      "name": "Conversion (CV/CVR saved, linked to click, device)",
+      "ok": true,
+      "ms": 44,
+      "info": "cv=1 cvr=50% (rejected excluded) mobile cv=1"
+    },
+    {
+      "name": "Revenue (auto from approved CV + manual, by device/ad)",
+      "ok": true,
+      "ms": 33,
+      "info": "total=¥4500 mobile=¥3000 desktop=¥1500"
+    },
+    {
+      "name": "AI Analysis (access/click: data_used, reasoning, causes, suggestions, uncertainty)",
+      "ok": true,
+      "ms": 66011,
+      "info": "analysis#3 suggestions=6 recs=6 65986ms; sensitive filter ok"
+    },
+    {
+      "name": "AI Recommendation (generate, categories)",
+      "ok": true,
+      "ms": 111205,
+      "info": "generated=4 pending total=11 categories=DESIGN,CTA,CONTENT,SEO,MOBILE"
+    },
+    {
+      "name": "Approval Workflow (Approve→Apply draft only / Reject / Hold)",
+      "ok": true,
+      "ms": 77,
+      "info": "rec#1 hold→approve→apply(5 changes, draft only, history#1); reject verified"
+    },
+    {
+      "name": "A/B Test (create A/B, running, variant metrics, data-insufficient verdict)",
+      "ok": true,
+      "ms": 30061,
+      "info": "exp#1 A pv=3 B pv=2 click=1 ctr=50% → \"判断にはデータ不足（各バリアント 50 PV以上必要）\" AI verdict=\"判断にはデータ不足\""
+    },
+    {
+      "name": "Improvement History (before→change→after + post analysis, no causal claim)",
+      "ok": true,
+      "ms": 47650,
+      "info": "history#1 before/change/after saved post-analysis#6 uncertainty present"
+    },
+    {
+      "name": "Undo / Redo (server-side history, survives reload)",
+      "ok": true,
+      "ms": 61,
+      "info": "add→undo(6)→redo(7)→undo→edit clears redo; history entries=23"
+    },
+    {
+      "name": "Autosave (creates autosave version, does NOT publish)",
+      "ok": true,
+      "ms": 46,
+      "info": "autosave v4; public unchanged, draft preview updated"
+    },
+    {
+      "name": "Version Control (manual save, list, publish version, public uses publish snapshot)",
+      "ok": true,
+      "ms": 40,
+      "info": "versions=6 (manual/autosave/publish/ai_apply) public updated only after Publish"
+    },
+    {
+      "name": "Rollback (restore old version, undo-able, new version recorded)",
+      "ok": true,
+      "ms": 43,
+      "info": "rolled back to v1 (1 comps) then undo → 6 comps"
+    },
+    {
+      "name": "SEO (title/meta/canonical/robots/sitemap/OGP/JSON-LD/headings/internal links/report)",
+      "ok": true,
+      "ms": 12177,
+      "info": "tags ok, sitemap/robots/feed ok, score=72 AI titles=5"
+    },
+    {
+      "name": "Security (XSS sanitize, SQLi, CSRF, rate limit, headers, secrets, ad code untouched)",
+      "ok": true,
+      "ms": 203,
+      "info": "XSS escaped/sanitized, SQLi safe, CSRF enforced, rate limit 429, CSP/nosniff/XFO, HttpOnly+SameSite, no secret leak, ad integrity, audit logs"
+    },
+    {
+      "name": "Authorization / RBAC (viewer read-only, editor no admin ops)",
+      "ok": true,
+      "ms": 183,
+      "info": "viewer: read ok / write 403; editor: edit ok / admin ops 403"
+    },
+    {
+      "name": "Logout (session destroyed)",
+      "ok": true,
+      "ms": 11,
+      "info": "session invalidated"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/login/page": "app/login/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/sites/route": "app/api/sites/route.js",
+  "/api/analytics/route": "app/api/analytics/route.js",
+  "/api/recommendations/route": "app/api/recommendations/route.js",
+  "/admin/sites/new/page": "app/admin/sites/new/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/sites/page": "app/admin/sites/page.js",
+  "/admin/sites/[id]/page": "app/admin/sites/[id]/page.js"
+}
