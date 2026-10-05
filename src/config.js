@@ -48,10 +48,14 @@ export const config = {
     maxTokensCap: Number(env.AI_MAX_TOKENS || 0),
     mode: env.AI_MODE || 'LOCAL_ONLY'
   },
+  // Initial admin bootstrap. Used ONLY by the seed when the users table is empty. Never exposed to clients.
+  // If ADMIN_PASSWORD is not set, a random password is generated once and printed to the server console only.
   admin: {
-    email: env.ADMIN_EMAIL || 'admin@example.com',
-    password: env.ADMIN_PASSWORD || 'Admin1234!'
+    email: (env.ADMIN_EMAIL || 'admin@example.com').toLowerCase().trim(),
+    password: env.ADMIN_PASSWORD || ''
   },
+  // Fixed-password demo accounts (editor/viewer) are only created when explicitly enabled.
+  seedDemoUsers: env.SEED_DEMO_USERS === 'true',
   uploadsDir: path.join(ROOT, 'public', 'uploads')
 };
 

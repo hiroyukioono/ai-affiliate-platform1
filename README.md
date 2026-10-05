@@ -46,8 +46,19 @@ npm run dev                # http://localhost:3000/admin/
 
 ### 4. ログイン
 - URL: http://localhost:3000/admin/
-- 初期管理者: `admin@example.com` / `Admin1234!`（`.env` の `ADMIN_EMAIL` / `ADMIN_PASSWORD`、初回シード時のみ使用）
-- RBACテスト用: `editor@example.com` / `Editor1234!`、`viewer@example.com` / `Viewer1234!`
+- 初期管理者は **`.env` の `ADMIN_EMAIL` / `ADMIN_PASSWORD`** で、**ユーザーテーブルが空のときに一度だけ** 作成されます（ブラウザには一切表示されません）。
+- `ADMIN_PASSWORD` を空にして起動すると、強力なランダムパスワードが生成され **サーバーコンソールに一度だけ** 表示されます。
+- 初回ログイン後は自動的に **Settings > 管理者アカウント** へ誘導され、パスワード変更を推奨します（変更するまでサイドバーに警告表示）。
+- editor / viewer のデモアカウントは既定で作成されません。必要なら `SEED_DEMO_USERS=true`（ランダムパスワードをコンソールに一度だけ表示）。
+
+### 管理者アカウントの変更（Settings > 管理者アカウント）
+- **メールアドレス変更**: 新しいメールアドレス + 現在のパスワード → 形式/重複/長さチェック → 更新。全セッション無効化 + 現在セッション再発行。
+- **パスワード変更**: 現在のパスワード + 新パスワード + 確認 → ポリシー（12文字以上・英大小/数字/記号・メール文字列不可・推測語不可）→ scryptハッシュで保存。全セッション無効化 + 再発行。
+- いずれも CSRF トークン必須、8回/10分 のレート制限、監査ログ（値は記録しない）。パスワードや .env の内容は画面・API・ログに出ません。
+- 変更後は `.env` の `ADMIN_PASSWORD` に依存しません（シードはユーザーが存在する限り再実行されないため）。
+
+### Render 等の本番環境
+`.env` はコミットせず、Render の **Environment Variables** に `SESSION_SECRET` / `ADMIN_EMAIL` / `ADMIN_PASSWORD`（初回のみ必要）/ `OLLAMA_BASE_URL` / `OLLAMA_MODEL` / `NODE_ENV=production` を設定してください。初回ログイン後にパスワードを変更すれば `ADMIN_PASSWORD` は削除して構いません。
 
 ### 5. Ollama接続テスト
 管理画面 **AI** メニュー →「接続テスト再実行」。`CONNECTED` / `ERROR` と、エラー時は原因（未起動・モデル無し・URL誤り・タイムアウト・接続拒否）と `ollama pull llama3.1:8b` の案内を表示。サーバー起動ログにも表示されます。
@@ -102,17 +113,18 @@ GET  /api/ai/improvements, POST .../:id/analyze  → 改善前後比較（因果
 - Core Web Vitals (LCP/CLS/INP) は公開サイトのブラウザ実測（PerformanceObserver）のみ集計。実測が無い場合は「未計測」と表示し推測値は出さない。
 
 ## セキュリティ
-scrypt パスワードハッシュ / HttpOnly+SameSite=Lax セッションCookie（本番は Secure） / セッション紐付けCSRFトークン / 全SQLプリペアド / 出力エスケープ + HTMLサニタイズ（script/iframe/on*/javascript: 除去）+ CSP / ログイン 10回/5分・API 600/分 のレート制限 / RBAC(admin/editor/viewer) / 監査ログ / 入力値検証 / AI APIキー不要（`.env` の `OLLAMA_API_KEY=ollama` はプレースホルダ） / AI設定・秘密情報をDB・フロント・公開サイトへ保存しない
+scrypt パスワードハッシュ / パスワードポリシー(12+, 英大小数字記号) / 初回ログイン時パスワード変更推奨(must_change_password) / 認証情報変更時のセッション再発行+他セッション失効 / HttpOnly+SameSite=Lax セッションCookie（本番は Secure） / セッション紐付けCSRFトークン / 全SQLプリペアド / 出力エスケープ + HTMLサニタイズ（script/iframe/on*/javascript: 除去）+ CSP / ログイン 10回/5分・API 600/分 のレート制限 / RBAC(admin/editor/viewer) / 監査ログ / 入力値検証 / AI APIキー不要（`.env` の `OLLAMA_API_KEY=ollama` はプレースホルダ） / AI設定・秘密情報をDB・フロント・公開サイトへ保存しない
 
 ## テスト
 ```powershell
-npm test          # ユニットテスト 12件（node --test）
-npm run test:e2e  # 実サーバーに対する E2E 44ステップ（Ollama接続・AI生成含む）→ TEST_REPORT.json
+npm test                                   # ユニットテスト 14件（node --test）
+ADMIN_PASSWORD=... npm run test:e2e        # 実サーバーに対する E2E 45ステップ（Ollama接続・AI生成・アカウント変更含む）→ TEST_REPORT.json
+# E2E は認証情報をコードに埋め込まず、環境変数 ADMIN_EMAIL / ADMIN_PASSWORD から読みます
 ```
 E2E は `--skip-ai` でAI依存ステップを明示的にFAILED/SKIP扱いにできます（PASSと偽りません）。
 
 ### テスト結果（サンドボックス実測・最終）
-`TEST_REPORT.md` を参照。**ユニット 12/12 PASS、E2E 44/44 PASS、管理画面24ルート+Builder操作 ブラウザ実機 PASS。**
+`TEST_REPORT.md` を参照。**ユニット 14/14 PASS、E2E 45/45 PASS、管理画面24ルート+Builder操作+アカウント変更フロー ブラウザ実機 PASS。**
 > サンドボックス（2 vCPU / 2GB RAM）では `llama3.1:8b`（4.7GB）が動作しないため、同一の Ollama OpenAI互換API経由で `qwen2.5:0.5b` を使って実接続テストを実施しました。Windows 11 では `.env` 既定の `llama3.1:8b` をそのまま使用してください。
 
 ## 本番移行
@@ -139,4 +151,4 @@ tests/{unit.test.js,e2e.test.js}
 start-windows.bat / ecosystem.config.cjs(PM2)
 ```
 
-Last updated: 2026-10-03
+Last updated: 2026-10-05

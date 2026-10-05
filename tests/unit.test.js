@@ -9,6 +9,7 @@ import { mobileQualityCheck } from '../src/render/mobileCheck.js';
 import { renderPage } from '../src/render/site.js';
 import { OllamaProvider } from '../src/ai/provider.js';
 import { runSeed } from '../src/db/seed.js';
+import { validatePasswordPolicy } from '../src/lib/auth.js';
 
 test('password hashing (scrypt) verifies and rejects', () => {
   const h = hashPassword('Secret123!');
@@ -56,10 +57,12 @@ test('extractJson handles fences, trailing commas, truncation', () => {
   assert.ok(repairTruncated('{"a":{"b":[1,{"c":"x').a.b.length === 2);
 });
 
-test('seed inserts 10 mobile prompts, 10 designs, 3 responsive sets, 3 users', () => {
+test('seed inserts 10 mobile prompts, 10 designs, 3 responsive sets, 1 bootstrap admin (must_change_password=1)', () => {
   const db = openTestDb();
   const r = runSeed(db, { log: () => {} });
-  assert.equal(r.mobilePrompts, 10); assert.equal(r.designs, 10); assert.equal(r.responsiveSets, 3); assert.equal(r.users, 3);
+  assert.equal(r.mobilePrompts, 10); assert.equal(r.designs, 10); assert.equal(r.responsiveSets, 3); assert.equal(r.users, 1);
+  const admin = db.get('SELECT * FROM users'); assert.equal(admin.role, 'admin'); assert.equal(admin.must_change_password, 1); assert.ok(admin.password_hash.startsWith('scrypt$'), 'hash stored, never plaintext');
+  assert.equal(db.get('SELECT COUNT(*) n FROM users WHERE email LIKE ?', ['%editor%']).n, 0, 'no fixed-password demo users by default');
   assert.equal(db.get('SELECT COUNT(*) n FROM mobile_prompt_versions').n, 10);
   const again = runSeed(db, { log: () => {} }); assert.equal(again.mobilePrompts, 0, 'idempotent');
 });
@@ -132,4 +135,23 @@ test('OllamaProvider.chat against mock OpenAI-compatible server + max token cap'
   const r = await p.chat([{ role: 'user', content: 'hi' }], { maxTokens: 2000, json: true });
   assert.equal(r.content, '{"ok":true}'); assert.equal(received.model, 'llama3.1:8b'); assert.equal(received.max_tokens, 100); assert.deepEqual(received.response_format, { type: 'json_object' });
   srv.close();
+});
+
+test('password policy: length, classes, email reuse, common words', () => {
+  assert.equal(validatePasswordPolicy('Str0ng-Pass-2026!').ok, true);
+  for (const weak of ['short1!A', 'alllowercase123!', 'ALLUPPERCASE123!', 'NoDigitsHere!!', 'NoSymbols12345', 'Passw0rd!!!!!!', 'aaaaBBBB1111!!!!']) assert.equal(validatePasswordPolicy(weak).ok, false, weak);
+  assert.equal(validatePasswordPolicy('Taro.Yamada-2026!', { email: 'taro.yamada@example.com' }).ok, false, 'email local part reuse');
+  assert.equal(validatePasswordPolicy('x'.repeat(201) + 'A1!').ok, false);
+});
+
+test('seed with empty ADMIN_PASSWORD generates a strong random one (console only)', async () => {
+  const db = openTestDb();
+  const { config } = await import('../src/config.js');
+  const saved = config.admin.password; config.admin.password = '';
+  const logs = []; const r = runSeed(db, { log: (...a) => logs.push(a.join(' ')) });
+  config.admin.password = saved;
+  assert.equal(r.bootstrapPasswordGenerated, true);
+  const line = logs.find(l => l.includes('Password:')); assert.ok(line, 'generated password printed once to console');
+  const pw = line.split('Password:')[1].trim(); assert.equal(validatePasswordPolicy(pw).ok, true, 'generated password satisfies policy');
+  assert.equal(verifyPassword(pw, db.get('SELECT password_hash FROM users').password_hash), true);
 });

@@ -5,6 +5,8 @@ const BASE = (process.argv.includes('--base') ? process.argv[process.argv.indexO
 const SKIP_AI = process.argv.includes('--skip-ai');
 const results = [];
 let cookie = '', csrf = '';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; if (!ADMIN_PASSWORD) { console.error('Set ADMIN_PASSWORD env (and ADMIN_EMAIL) to run E2E'); process.exit(2); }
 
 async function req(method, path, body, { raw = false, headers = {}, noCsrf = false, cookieOverride } = {}) {
   const h = { ...headers };
@@ -33,9 +35,9 @@ await step('Application Start', async () => { const r = await req('GET', '/api/h
 await step('Database', async () => { const r = await req('GET', '/api/health'); assert(r.data.db.tables >= 27, 'expected >=27 tables, got ' + r.data.db.tables); return `${r.data.db.driver} ${r.data.db.tables} tables`; });
 // STEP 3 Auth
 await step('Authentication (login/fail/logout/me)', async () => {
-  const bad = await req('POST', '/api/auth/login', { email: 'admin@example.com', password: 'nope' }, { noCsrf: true }); assert(bad.status === 401, 'wrong password should 401, got ' + bad.status);
+  const bad = await req('POST', '/api/auth/login', { email: ADMIN_EMAIL, password: 'nope' }, { noCsrf: true }); assert(bad.status === 401, 'wrong password should 401, got ' + bad.status);
   const noauth = await req('GET', '/api/sites', undefined, { cookieOverride: '' }); assert(noauth.status === 401, 'unauthenticated should 401');
-  const r = await req('POST', '/api/auth/login', { email: 'admin@example.com', password: process.env.ADMIN_PASSWORD || 'Admin1234!' }, { noCsrf: true }); assert(r.status === 200 && r.data.csrf, 'login failed: ' + r.text); csrf = r.data.csrf;
+  const r = await req('POST', '/api/auth/login', { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }, { noCsrf: true }); assert(r.status === 200 && r.data.csrf, 'login failed: ' + r.text); csrf = r.data.csrf; assert(!('password_hash' in r.data.user) && !('password' in r.data.user), 'login response must not contain password data');
   const me = await req('GET', '/api/auth/me'); assert(me.data.authenticated && me.data.user.role === 'admin', 'me failed');
   const nocsrf = await req('POST', '/api/sites', { name: 'x' }, { noCsrf: true }); assert(nocsrf.status === 403, 'missing CSRF should 403');
   return `user=${me.data.user.email}`;
@@ -311,10 +313,10 @@ await step('Security (XSS sanitize, SQLi, CSRF, rate limit, headers, secrets, ad
   const x = await req('POST', `/api/builder/pages/${ctx.pageId}/components`, { type: 'heading', props: { text: '<img src=x onerror=alert(1)>', level: 2 } }); const pv = await req('GET', `/api/preview/pages/${ctx.pageId}`); assert(pv.text.includes('&lt;img src=x onerror=alert(1)&gt;'), 'XSS: heading must be escaped'); await req('DELETE', `/api/builder/pages/${ctx.pageId}/components/${x.data.component.id}`);
   const sqli = await req('POST', '/api/auth/login', { email: "' OR 1=1 --", password: "' OR '1'='1" }, { noCsrf: true }); assert(sqli.status === 401, 'SQLi login must fail'); const h = await req('GET', '/api/health'); assert(h.data.ok, 'db intact after sqli');
   const sq2 = await fetch(`${BASE}/s/${ctx.site.slug}/search?q=%27%20OR%201%3D1%20--`); assert(sq2.status === 200, 'search sqli should not crash');
-  const me = await req('GET', '/api/auth/me'); assert(!JSON.stringify(me.data).match(/sessionSecret|password|SESSION_SECRET/i), 'secrets leaked in /me');
+  const me = await req('GET', '/api/auth/me'); assert(!JSON.stringify(me.data).replace(/must_change_password/g, '').match(/sessionSecret|password|SESSION_SECRET|ADMIN_PASSWORD/i), 'secrets leaked in /me');
   const admin = await fetch(`${BASE}/admin/`); assert(admin.headers.get('content-security-policy') && admin.headers.get('x-content-type-options') === 'nosniff', 'security headers missing');
-  const pub = await fetch(`${BASE}/s/${ctx.site.slug}/`); assert(pub.headers.get('x-frame-options') === 'SAMEORIGIN', 'x-frame-options'); const pubHtml = await pub.text(); assert(!/localhost:12000|OLLAMA|SESSION_SECRET|Admin1234/.test(pubHtml), 'public site leaks config');
-  const sc = cookie; assert(/aap_sid=/.test(sc), 'session cookie'); const loginRes = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'admin@example.com', password: 'Admin1234!' }) }); const setc = loginRes.headers.get('set-cookie') || ''; assert(/HttpOnly/i.test(setc) && /SameSite=Lax/i.test(setc), 'cookie flags');
+  const pub = await fetch(`${BASE}/s/${ctx.site.slug}/`); assert(pub.headers.get('x-frame-options') === 'SAMEORIGIN', 'x-frame-options'); const pubHtml = await pub.text(); assert(!/localhost:12000|OLLAMA|SESSION_SECRET|ADMIN_PASSWORD/.test(pubHtml) && !pubHtml.includes(ADMIN_PASSWORD), 'public site leaks config');
+  const sc = cookie; assert(/aap_sid=/.test(sc), 'session cookie'); const loginRes = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }) }); const setc = loginRes.headers.get('set-cookie') || ''; assert(/HttpOnly/i.test(setc) && /SameSite=Lax/i.test(setc), 'cookie flags');
   let limited = false; for (let i = 0; i < 12; i++) { const r = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.9' }, body: JSON.stringify({ email: 'nobody@example.com', password: 'x' }) }); if (r.status === 429) { limited = true; break; } } assert(limited, 'login rate limit not triggered');
   const ad = await req('GET', `/api/affiliate/ads/${ctx.adId}`); assert(ad.data.integrity_ok && ad.data.original_code.includes('tracking=xyz'), 'ad code integrity');
   const logs = await req('GET', '/api/auth/audit-logs?limit=5'); assert(logs.data.length > 0 && logs.data[0].action, 'audit logs');
@@ -322,12 +324,60 @@ await step('Security (XSS sanitize, SQLi, CSRF, rate limit, headers, secrets, ad
 });
 await step('Authorization / RBAC (viewer read-only, editor no admin ops)', async () => {
   const saved = { cookie, csrf };
-  cookie = ''; csrf = ''; const v = await req('POST', '/api/auth/login', { email: 'viewer@example.com', password: 'Viewer1234!' }, { noCsrf: true }); assert(v.status === 200, 'viewer login'); csrf = v.data.csrf;
+  const vpw = 'Viewer-Test-Pass-2026!', epw = 'Editor-Test-Pass-2026!';
+  const weak = await req('POST', '/api/auth/users', { email: 'weak@example.com', name: 'W', password: 'short', role: 'viewer' }); assert(weak.status === 400, 'weak password for new user must be rejected');
+  const cv = await req('POST', '/api/auth/users', { email: 'e2e-viewer@example.com', name: 'Viewer', password: vpw, role: 'viewer' }); assert(cv.status === 201, 'create viewer: ' + cv.text);
+  const ce = await req('POST', '/api/auth/users', { email: 'e2e-editor@example.com', name: 'Editor', password: epw, role: 'editor' }); assert(ce.status === 201, 'create editor');
+  cookie = ''; csrf = ''; const v = await req('POST', '/api/auth/login', { email: 'e2e-viewer@example.com', password: vpw }, { noCsrf: true }); assert(v.status === 200 && v.data.user.must_change_password === true, 'viewer login / must_change flag'); csrf = v.data.csrf;
   assert((await req('GET', '/api/sites')).status === 200, 'viewer can read'); assert((await req('POST', '/api/sites', { name: 'nope' })).status === 403, 'viewer must not create'); assert((await req('GET', '/api/auth/users')).status === 403, 'viewer must not list users'); assert((await req('POST', `/api/builder/pages/${ctx.pageId}/components`, { type: 'divider' })).status === 403, 'viewer must not edit builder');
-  cookie = ''; csrf = ''; const e = await req('POST', '/api/auth/login', { email: 'editor@example.com', password: 'Editor1234!' }, { noCsrf: true }); assert(e.status === 200, 'editor login'); csrf = e.data.csrf;
+  cookie = ''; csrf = ''; const e = await req('POST', '/api/auth/login', { email: 'e2e-editor@example.com', password: epw }, { noCsrf: true }); assert(e.status === 200, 'editor login'); csrf = e.data.csrf;
   assert((await req('GET', '/api/auth/users')).status === 403, 'editor must not manage users'); assert((await req('DELETE', `/api/sites/${ctx.site.id}`)).status === 403, 'editor must not delete site'); const ok = await req('POST', `/api/builder/pages/${ctx.pageId}/components`, { type: 'divider' }); assert(ok.status === 201, 'editor can edit'); await req('DELETE', `/api/builder/pages/${ctx.pageId}/components/${ok.data.component.id}`);
   const lo = await req('POST', '/api/auth/logout'); assert(lo.data.ok, 'logout');
-  cookie = saved.cookie; csrf = saved.csrf; return 'viewer: read ok / write 403; editor: edit ok / admin ops 403';
+  cookie = saved.cookie; csrf = saved.csrf;
+  await req('DELETE', `/api/auth/users/${cv.data.id}`); await req('DELETE', `/api/auth/users/${ce.data.id}`);
+  return 'viewer: read ok / write 403; editor: edit ok / admin ops 403; weak pw rejected';
+});
+await step('Account Security (no secrets in UI/API, email change, password change, policy, session rotation, rate limit)', async () => {
+  // 1. Login page / JS / API must not contain initial credentials
+  const html = await (await fetch(`${BASE}/admin/`)).text();
+  const js = (await Promise.all(['core', 'app', 'pages', 'pages2', 'builder', 'uitest'].map(f => fetch(`${BASE}/admin/assets/${f}.js`).then(r => r.text())))).join('\n');
+  for (const needle of [ADMIN_PASSWORD, 'ADMIN_PASSWORD', 'ADMIN_EMAIL', 'SESSION_SECRET', 'Admin1234', '初期アカウント']) assert(!html.includes(needle) && !js.includes(needle), `client code leaks "${needle}"`);
+  assert(!js.includes('value="admin@example.com"'), 'login email must not be prefilled');
+  const meJson = JSON.stringify((await req('GET', '/api/auth/me')).data); assert(!/password|secret|ADMIN_/i.test(meJson.replace(/must_change_password/g, '')), '/me leaks secrets');
+  const cfgJson = JSON.stringify((await req('GET', '/api/auth/me')).data.config); assert(!/admin|password|secret/i.test(cfgJson), 'public config leaks admin info');
+  // 2. Account info endpoint: masked email, no hash
+  const acct = await req('GET', '/api/auth/account'); assert(acct.status === 200 && acct.data.email_masked.includes('*') && !('password_hash' in acct.data) && acct.data.password_policy, 'account endpoint');
+  const unauth = await req('GET', '/api/auth/account', undefined, { cookieOverride: '' }); assert(unauth.status === 401, 'account must require auth');
+  // 3. Password change validations
+  const newPw = 'E2E-New-Secure-Pass-2026!';
+  assert((await req('PUT', '/api/auth/account/password', { current_password: 'wrong-current', new_password: newPw, new_password_confirm: newPw })).status === 401, 'wrong current password must 401');
+  assert((await req('PUT', '/api/auth/account/password', { current_password: ADMIN_PASSWORD, new_password: newPw, new_password_confirm: newPw + 'x' })).status === 400, 'mismatch must 400');
+  assert((await req('PUT', '/api/auth/account/password', { current_password: ADMIN_PASSWORD, new_password: 'weakpass', new_password_confirm: 'weakpass' })).status === 400, 'weak password must 400');
+  assert((await req('PUT', '/api/auth/account/password', { current_password: ADMIN_PASSWORD, new_password: newPw, new_password_confirm: newPw }, { noCsrf: true })).status === 403, 'CSRF required');
+  const oldCookie = cookie;
+  const ch = await req('PUT', '/api/auth/account/password', { current_password: ADMIN_PASSWORD, new_password: newPw, new_password_confirm: newPw }); assert(ch.status === 200 && ch.data.message === '管理者アカウント情報を更新しました。' && ch.data.user.must_change_password === false && ch.data.csrf, 'password change failed: ' + ch.text);
+  assert(!JSON.stringify(ch.data).includes(newPw), 'response must not echo password'); csrf = ch.data.csrf;
+  assert(cookie !== oldCookie, 'session id must rotate after password change');
+  const oldSess = await req('GET', '/api/sites', undefined, { cookieOverride: oldCookie }); assert(oldSess.status === 401, 'old session must be revoked');
+  // 4. Old password no longer works, new works
+  const c0 = cookie, cs0 = csrf; cookie = ''; csrf = '';
+  assert((await req('POST', '/api/auth/login', { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }, { noCsrf: true })).status === 401, 'old password must fail');
+  const nl = await req('POST', '/api/auth/login', { email: ADMIN_EMAIL, password: newPw }, { noCsrf: true }); assert(nl.status === 200, 'new password login'); csrf = nl.data.csrf;
+  // 5. Email change
+  const newEmail = 'e2e-admin-changed@example.com';
+  assert((await req('PUT', '/api/auth/account/email', { current_password: newPw, new_email: 'not-an-email' })).status === 400, 'invalid email must 400');
+  assert((await req('PUT', '/api/auth/account/email', { current_password: 'bad', new_email: newEmail })).status === 401, 'email change needs current password');
+  const em = await req('PUT', '/api/auth/account/email', { current_password: newPw, new_email: newEmail }); assert(em.status === 200 && em.data.user.email === newEmail, 'email change failed: ' + em.text); csrf = em.data.csrf;
+  cookie = ''; csrf = ''; const l2 = await req('POST', '/api/auth/login', { email: newEmail, password: newPw }, { noCsrf: true }); assert(l2.status === 200, 'login with new email'); csrf = l2.data.csrf;
+  // 6. Stored hash is scrypt (not plaintext) — verify via users listing not exposing hash, and DB check through admin API shape
+  const users = await req('GET', '/api/auth/users'); assert(users.data.every(u => !('password_hash' in u)), 'users API must not expose hashes');
+  // 7. Rate limit on account changes (8/10min): remaining attempts should hit 429 eventually
+  let limited = false; for (let i = 0; i < 12; i++) { const r = await req('PUT', '/api/auth/account/password', { current_password: 'x', new_password: newPw, new_password_confirm: newPw }); if (r.status === 429) { limited = true; break; } } assert(limited, 'account change rate limit not triggered');
+  // 8. Restore original credentials for subsequent runs (rate-limited now, so wait for a fresh key by using a different X-Forwarded-For)
+  const restore = async (path, body) => req('PUT', path, body, { headers: { 'X-Forwarded-For': '198.51.100.7' } });
+  const r1 = await restore('/api/auth/account/email', { current_password: newPw, new_email: ADMIN_EMAIL }); assert(r1.status === 200, 'restore email'); csrf = r1.data.csrf;
+  const r2 = await restore('/api/auth/account/password', { current_password: newPw, new_password: ADMIN_PASSWORD, new_password_confirm: ADMIN_PASSWORD }); assert(r2.status === 200, 'restore password: ' + r2.text); csrf = r2.data.csrf;
+  return 'no secrets in HTML/JS/API; pw change (401/400/403 guards, rotation, revoke, old pw fails); email change; rate limit 429; hash never exposed';
 });
 await step('Logout (session destroyed)', async () => { const r = await req('POST', '/api/auth/logout'); assert(r.data.ok, 'logout failed'); const me = await req('GET', '/api/auth/me'); assert(me.data.authenticated === false, 'session should be destroyed'); const s = await req('GET', '/api/sites'); assert(s.status === 401, 'should be 401 after logout'); return 'session invalidated'; });
 

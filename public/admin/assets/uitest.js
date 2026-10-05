@@ -3,7 +3,8 @@
 (() => {
   if (!location.hash.startsWith('#/uitest')) return;
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
-  const email = q.get('email') || 'admin@example.com', pw = q.get('pw') || 'Admin1234!';
+  const email = q.get('email'), pw = q.get('pw');
+  if (!email || !pw) { console.error('UITEST: pass ?email=...&pw=... (credentials are never embedded in this file)'); return; }
   const ALL = ['/', '/sites', '/designs', '/responsive', '/mobile-prompts', '/mobile', '/media', '/articles', '/categories', '/products', '/affiliate-programs', '/affiliate-links', '/ads', '/analytics', '/conversions', '/revenue', '/seo', '/ai', '/recommendations', '/experiments', '/improvements', '/calendar', '/settings', '/builder'];
   const start = Number(q.get('start') || 0), count = Number(q.get('count') || ALL.length);
   const routes = ALL.slice(start, start + count);

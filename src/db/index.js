@@ -56,7 +56,16 @@ export function getDb() {
 export function initSchema(db = getDb()) {
   const schema = fs.readFileSync(path.join(ROOT, 'src', 'db', 'schema.sql'), 'utf8');
   db.exec(schema);
+  runMigrations(db);
   return db;
+}
+
+// Additive, idempotent migrations for databases created by earlier versions (CREATE TABLE IF NOT EXISTS won't add columns).
+function runMigrations(db) {
+  const addCol = (table, col, ddl) => { const cols = db.all(`PRAGMA table_info(${table})`).map(c => c.name); if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`); };
+  addCol('users', 'must_change_password', 'INTEGER NOT NULL DEFAULT 0');
+  addCol('users', 'password_changed_at', 'TEXT');
+  addCol('revenues', 'variant_id', 'INTEGER REFERENCES experiment_variants(id) ON DELETE SET NULL');
 }
 
 export function openTestDb() {

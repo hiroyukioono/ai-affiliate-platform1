@@ -39,11 +39,11 @@ export function loadSession(c) {
   const sid = getCookie(c, SESSION_COOKIE);
   if (!sid) return null;
   const db = getDb();
-  const row = db.get(`SELECT s.id as sid, s.csrf_token, s.expires_at, u.id, u.email, u.name, u.role, u.is_active
+  const row = db.get(`SELECT s.id as sid, s.csrf_token, s.expires_at, u.id, u.email, u.name, u.role, u.is_active, u.must_change_password
                       FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=?`, [sid]);
   if (!row) return null;
   if (row.expires_at < now() || !row.is_active) { db.run('DELETE FROM sessions WHERE id=?', [sid]); return null; }
-  return { sid: row.sid, csrf: row.csrf_token, user: { id: row.id, email: row.email, name: row.name, role: row.role } };
+  return { sid: row.sid, csrf: row.csrf_token, user: publicUser(row) };
 }
 
 // Middleware: attach session to context
@@ -83,7 +83,38 @@ export function login(c, email, password) {
   }
   const sess = createSession(c, user);
   audit(db, user.id, 'LOGIN', 'user', user.id, null, ip);
-  return { user: { id: user.id, email: user.email, name: user.name, role: user.role }, csrf: sess.csrf };
+  return { user: publicUser(user), csrf: sess.csrf };
+}
+
+// The only user shape ever sent to clients. Never includes password_hash or env values.
+export function publicUser(u) {
+  return { id: u.id, email: u.email, name: u.name, role: u.role, must_change_password: !!u.must_change_password };
+}
+
+// Password policy: >=12 chars, upper, lower, digit, symbol, not equal to email local part.
+export const PASSWORD_POLICY_TEXT = '12文字以上で、英大文字・英小文字・数字・記号をそれぞれ1文字以上含めてください。第三者に推測されにくい十分な長さのものを設定してください。';
+export function validatePasswordPolicy(pw, { email = '' } = {}) {
+  const errors = [];
+  if (typeof pw !== 'string' || pw.length < 12) errors.push('12文字以上必要です');
+  if (pw.length > 200) errors.push('200文字以内にしてください');
+  if (!/[A-Z]/.test(pw)) errors.push('英大文字が必要です');
+  if (!/[a-z]/.test(pw)) errors.push('英小文字が必要です');
+  if (!/[0-9]/.test(pw)) errors.push('数字が必要です');
+  if (!/[^A-Za-z0-9]/.test(pw)) errors.push('記号が必要です');
+  if (/(.)\1{3,}/.test(pw)) errors.push('同じ文字の4連続以上は使えません');
+  const local = String(email).split('@')[0].toLowerCase();
+  if (local && local.length >= 4 && pw.toLowerCase().includes(local)) errors.push('メールアドレスを含むパスワードは使えません');
+  if (/^(password|passw0rd|admin|qwerty|letmein)/i.test(pw)) errors.push('推測されやすいパスワードです');
+  return { ok: errors.length === 0, errors };
+}
+
+// Rotate session (prevents session fixation after credential change). Other sessions of the user are revoked.
+export function rotateSession(c, user, { revokeOthers = true } = {}) {
+  const db = getDb();
+  const current = getCookie(c, SESSION_COOKIE);
+  if (revokeOthers) db.run('DELETE FROM sessions WHERE user_id=?', [user.id]);
+  else if (current) db.run('DELETE FROM sessions WHERE id=?', [current]);
+  return createSession(c, user);
 }
 
 export { hashPassword, verifyPassword };

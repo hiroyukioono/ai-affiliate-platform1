@@ -42,6 +42,7 @@
         <nav class="flex-1 overflow-y-auto p-2 space-y-0.5">${MENU.map(m => `<a href="#${m.path}" class="nav-link ${('/' + cur) === m.path || (m.path === '/' && cur === '') ? 'active' : ''}"><i class="fas ${m.icon}"></i>${m.label}</a>`).join('')}</nav>
         <div class="p-3 border-t border-slate-800 text-xs">
           <div class="flex items-center justify-between"><span class="truncate">${esc(state.user?.name)} ${badge(state.user?.role, 'blue')}</span><button class="btn btn-ghost btn-sm text-slate-300" id="logout-btn" title="ログアウト"><i class="fas fa-right-from-bracket"></i></button></div>
+          ${state.user?.must_change_password ? `<a href="#/settings" class="block mt-2 text-[11px] text-amber-300"><i class="fas fa-triangle-exclamation"></i> パスワード変更を推奨</a>` : ''}
           <div class="mt-2 flex items-center gap-2"><span class="status-dot ${state.aiStatus === 'CONNECTED' ? 'bg-green-400' : state.aiStatus ? 'bg-red-400' : 'bg-slate-500'}"></span><span class="text-slate-400">Ollama ${state.aiStatus || '...'}</span></div>
         </div>
       </aside>
@@ -74,17 +75,19 @@
   route('/login', async (app) => {
     if (state.user) { navigate('/'); return; }
     app.innerHTML = `<div class="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 to-blue-900">
-      <form id="login-form" class="card w-full max-w-sm space-y-4">
-        <div class="text-center"><i class="fas fa-robot text-4xl text-blue-600"></i><h1 class="text-xl font-bold mt-2">AI Affiliate Platform</h1><p class="text-xs text-slate-500">Local Ollama (llama3.1:8b) powered</p></div>
-        <div><label class="label">メールアドレス</label><input class="input" type="email" name="email" value="admin@example.com" required autocomplete="username"></div>
-        <div><label class="label">パスワード</label><input class="input" type="password" name="password" required autocomplete="current-password"></div>
+      <form id="login-form" class="card w-full max-w-sm space-y-4" autocomplete="on">
+        <div class="text-center"><i class="fas fa-robot text-4xl text-blue-600"></i><h1 class="text-xl font-bold mt-2">管理者ログイン</h1><p class="text-xs text-slate-500">AI Affiliate Platform</p></div>
+        <div><label class="label" for="login-email">メールアドレス</label><input id="login-email" class="input" type="email" name="email" required autocomplete="username" maxlength="200"></div>
+        <div><label class="label" for="login-password">パスワード</label><input id="login-password" class="input" type="password" name="password" required autocomplete="current-password" maxlength="200"></div>
         <button class="btn btn-primary w-full justify-center" type="submit"><i class="fas fa-right-to-bracket"></i> ログイン</button>
-        <p id="login-err" class="text-sm text-red-600 hidden"></p>
-        <p class="text-[11px] text-slate-500">初期アカウントは .env の ADMIN_EMAIL / ADMIN_PASSWORD（既定: admin@example.com / Admin1234!）</p>
+        <p id="login-err" class="text-sm text-red-600 hidden" role="alert"></p>
+        <p class="text-[11px] text-slate-500">パスワードを忘れた場合は、システム管理者に連絡してください。</p>
       </form></div>`;
     app.querySelector('#login-form').onsubmit = async (e) => {
       e.preventDefault(); const f = e.target; const err = app.querySelector('#login-err');
-      try { const r = await post('/api/auth/login', { email: f.email.value, password: f.password.value }); state.user = r.user; state.csrf = r.csrf; toast(`ようこそ ${r.user.name} さん`, 'success'); await loadSites(); navigate('/'); }
+      const email = f.email.value, password = f.password.value; f.password.value = '';
+      try { const r = await post('/api/auth/login', { email, password }); state.user = r.user; state.csrf = r.csrf; toast(`ようこそ ${r.user.name} さん`, 'success'); await loadSites();
+        if (r.user.must_change_password) { toast('初期パスワードを使用しています。安全のため新しいパスワードを設定してください。', 'warn', 8000); navigate('/settings'); } else navigate('/'); }
       catch (ex) { err.textContent = ex.message; err.classList.remove('hidden'); }
     };
   });

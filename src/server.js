@@ -23,7 +23,7 @@ serve({ fetch: app.fetch, port: config.port, hostname: config.host }, (info) => 
   console.log(`  API      : http://localhost:${info.port}/api/health`);
   console.log(`  DB       : ${config.db.driver} (${config.db.file})`);
   console.log(`  AI       : ${config.ai.provider} ${config.ai.model} @ ${config.ai.baseUrl} [${config.ai.mode}]`);
-  console.log(`  Login    : ${config.admin.email} / (ADMIN_PASSWORD in .env)\n`);
+  console.log(`  Login    : http://localhost:${info.port}/admin/  (管理者アカウントで)\n`);
   getProvider().healthCheck().then(h => {
     console.log(`  Ollama   : ${h.status}${h.errors.length ? ' - ' + h.errors.join(' | ') : ''}${h.hint ? '\n             hint: ' + h.hint : ''}\n`);
   }).catch(() => {});

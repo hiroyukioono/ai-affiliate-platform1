@@ -1,5 +1,9 @@
 node_modules/
 .env
+.env.local
+.env.*.local
+*.pem
+*.key
 data/*.db
 data/*.db-*
 public/uploads/*
